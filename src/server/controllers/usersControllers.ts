@@ -1,3 +1,4 @@
+import bcryptjs from "bcryptjs";
 import "../../loadEnvironment.js";
 import { type NextFunction, type Request, type Response } from "express";
 import { CustomError } from "../../CustomError/CustomError.js";
@@ -5,7 +6,7 @@ import User from "../../database/models/User.js";
 import { type UserCredentials } from "../../types";
 import jwt from "jsonwebtoken";
 
-const loginUser = async (
+export const loginUser = async (
   req: Request<
     Record<string, unknown>,
     Record<string, unknown>,
@@ -39,4 +40,33 @@ const loginUser = async (
   res.status(200).json({ token });
 };
 
-export default loginUser;
+export const createUser = async (
+  req: Request<
+    Record<string, unknown>,
+    Record<string, unknown>,
+    UserCredentials
+  >,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { password, username, email } = req.body;
+    const avatar = req.file;
+
+    const saltLength = 10;
+    const hashedPassword = await bcryptjs.hash(password, saltLength);
+
+    const newUser = await User.create({
+      username,
+      password: hashedPassword,
+      avatar,
+      email,
+    });
+
+    res.status(201).json({ newUser });
+  } catch (error) {
+    const customError = new CustomError(error, 500, "Wrong Credentials");
+
+    next(customError);
+  }
+};
